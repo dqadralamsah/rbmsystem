@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ClaimStatus {
+  DRAFT
+  PENDING_ATASAN
+  PENDING_FINANCE
+  APPROVED
+  REJECTED
+}
+
+enum ActionType {
+  SUBMIT
+  APPROVE
+  REJECT
+}
+
+// ==========================================
+// MODELS / TABLES
+// ==========================================
+
+model ReimbursementRequest {
+  id          String                    @id @db.VarChar(20) // Format: RBM-YYYYMM-XXXX
+  userId      String                    @map("user_id") @db.VarChar(50)
+  userName    String                    @map("user_name") @db.VarChar(100)
+  approverId  String                    @map("approver_id") @db.VarChar(50)
+  title       String                    @db.VarChar(255)
+  totalAmount BigInt                    @map("total_amount") @db.BigInt // Rupee/Rupiah BigInt safety
+  status      ClaimStatus               @default(DRAFT)
+  createdAt   DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  items       ReimbursementItem[]
+  attachments ReimbursementAttachment[]
+  histories   ReimbursementHistory[]
+
+  @@map("reimbursement_requests")
+}
+
+model ReimbursementItem {
+  id          Int                  @id @default(autoincrement())
+  requestId   String               @map("request_id") @db.VarChar(20)
+  category    String               @db.VarChar(50) // Transport, Medical, etc.
+  amount      BigInt               @db.BigInt
+  description String?              @db.Text
+
+  // Relations
+  request     ReimbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("reimbursement_items")
+}
+
+model ReimbursementAttachment {
+  id        Int                  @id @default(autoincrement())
+  requestId String               @map("request_id") @db.VarChar(20)
+  fileName  String               @map("file_name") @db.VarChar(255)
+  filePath  String               @map("file_path") @db.Text // Target pointer for MinIO Path
+  fileSize  Int                  @map("file_size") @db.Integer // Max 10MB validation handled in service
+
+  // Relations
+  request   ReimbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("reimbursement_attachments")
+}
+
+model ReimbursementHistory {
+  id        Int                  @id @default(autoincrement())
+  requestId String               @map("request_id") @db.VarChar(20)
+  actorId   String               @map("actor_id") @db.VarChar(50)
+  actorName String               @map("actor_name") @db.VarChar(100)
+  action    ActionType
+  notes     String?              @db.Text // Mandatory in application level if action is REJECT
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  request   ReimbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("reimbursement_histories")
+}
