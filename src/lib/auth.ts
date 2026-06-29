@@ -1,107 +1,89 @@
 import "server-only";
 
+import { cache } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-export type AuthRole = "REQUESTER" | "MANAGER" | "FINANCE";
+import {
+  AUTH_SESSION_COOKIE,
+  AUTH_SESSION_MAX_AGE,
+} from "@/modules/auth/constants";
+import { findActiveUserSessionById } from "@/modules/auth/repositories/auth.repository";
+import { hasPermissionCode } from "@/modules/auth/services/authorization.service";
+import type { AuthSession, CurrentUser } from "@/modules/auth/types";
+import { authSessionSchema } from "@/modules/auth/validation/auth.validation";
 
-export interface AuthSession {
-  userId: string;
-  userName: string;
-  role: AuthRole;
-  approverId: string;
-  approverName: string;
-}
-
-export const AUTH_SESSION_COOKIE = "rbm_mock_session";
-
-const MOCK_SESSIONS: Record<AuthRole, AuthSession> = {
-  REQUESTER: {
-    userId: "EMP-001",
-    userName: "Ayu Pemohon",
-    role: "REQUESTER",
-    approverId: "MGR-001",
-    approverName: "Bima Atasan",
-  },
-  MANAGER: {
-    userId: "MGR-001",
-    userName: "Bima Atasan",
-    role: "MANAGER",
-    approverId: "FIN-001",
-    approverName: "Citra Finance",
-  },
-  FINANCE: {
-    userId: "FIN-001",
-    userName: "Citra Finance",
-    role: "FINANCE",
-    approverId: "FIN-LEAD-001",
-    approverName: "Dewi Finance Lead",
-  },
-};
-
-function isAuthRole(value: FormDataEntryValue | string | null): value is AuthRole {
-  return value === "REQUESTER" || value === "MANAGER" || value === "FINANCE";
-}
-
-function isAuthSession(value: unknown): value is AuthSession {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const session = value as Partial<AuthSession>;
-
-  return (
-    typeof session.userId === "string" &&
-    typeof session.userName === "string" &&
-    isAuthRole(session.role ?? null) &&
-    typeof session.approverId === "string" &&
-    typeof session.approverName === "string"
-  );
-}
-
-export function createMockSession(role: AuthRole): AuthSession {
-  return MOCK_SESSIONS[role];
-}
-
-export function parseAuthRole(value: FormDataEntryValue | null): AuthRole {
-  if (!isAuthRole(value)) {
-    throw new Error("Invalid login role selected.");
-  }
-
-  return value;
-}
-
-export async function getAuthSession(): Promise<AuthSession | null> {
-  const cookieStore = await cookies();
-  const rawSession = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
-
-  if (!rawSession) {
+function parseAuthSession(value: string | undefined): AuthSession | null {
+  if (!value) {
     return null;
   }
 
   try {
-    const session = JSON.parse(decodeURIComponent(rawSession));
-    return isAuthSession(session) ? session : null;
+    const parsedValue: unknown = JSON.parse(decodeURIComponent(value));
+    const result = authSessionSchema.safeParse(parsedValue);
+
+    return result.success ? result.data : null;
   } catch {
     return null;
   }
 }
 
-export async function setMockAuthSession(role: AuthRole): Promise<AuthSession> {
-  const session = createMockSession(role);
+export async function getAuthSession(): Promise<AuthSession | null> {
   const cookieStore = await cookies();
 
-  cookieStore.set(AUTH_SESSION_COOKIE, encodeURIComponent(JSON.stringify(session)), {
-    httpOnly: true,
-    maxAge: 60 * 60 * 8,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+  return parseAuthSession(cookieStore.get(AUTH_SESSION_COOKIE)?.value);
+}
 
-  return session;
+export async function setAuthSession(session: AuthSession): Promise<void> {
+  const cookieStore = await cookies();
+
+  cookieStore.set(
+    AUTH_SESSION_COOKIE,
+    encodeURIComponent(JSON.stringify(session)),
+    {
+      httpOnly: true,
+      maxAge: AUTH_SESSION_MAX_AGE,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    },
+  );
 }
 
 export async function clearAuthSession(): Promise<void> {
   const cookieStore = await cookies();
+
   cookieStore.delete(AUTH_SESSION_COOKIE);
+}
+
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const session = await getAuthSession();
+
+  if (!session) {
+    return null;
+  }
+
+  return findActiveUserSessionById(session.userId);
+});
+
+export async function requireAuth(): Promise<CurrentUser> {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/");
+  }
+
+  return user;
+}
+
+export async function requirePermission(
+  permission: string | string[],
+): Promise<CurrentUser> {
+  const user = await requireAuth();
+
+  if (!hasPermissionCode(user.permissions, permission)) {
+    throw new Error("Forbidden");
+  }
+
+  return user;
 }

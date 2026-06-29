@@ -6,60 +6,285 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 <!-- END:nextjs-agent-rules -->
 
-# Agent Behavior & Workflow Rules
+<!-- AGENTS AI GUIDELINES -->
 
-## Project Context & Purpose
+# AI Development Guidelines
 
-You are an AI Coding Assistant responsible for developing the Internal E-Reimbursement System.
+## Project Overview
 
-- Architecture: Monolith Fullstack using Next.js (App Router) and TypeScript.
-- Styling Engine: Tailwind CSS, Shadcn UI, and Phosphor Icons.
-- Database: PostgreSQL via Prisma ORM.
-- PDF Generator: @react-pdf/renderer
-- File Storage Target: MinIO
-- Core Principle: Code must be simple, readable, maintainable, and strictly adhere to the Service-Layered Architecture to ensure a smooth, long-term handover process for the internal IT team.
+Project Name: Reimbursement System (RBM System)
+Description: Develop an internal web-based reimbursement management system for corporate use. The system manages reimbursement requests from draft creation, approval workflow, finance verification, payment, and audit history.
 
-## Architectural Guardrails (Absolute Rules)
+## Source of Truth
 
-🚫 STRICTLY FORBIDDEN:
+The AI must always follow the project documentation before generating or modifying code.
 
-1. DO NOT alter, modify, or rewrite the database schema. The prisma/schema.prisma file and database structures are READ-ONLY and must not be touched or altered under any circumstances.
+Priority order:
 
-2. DO NOT create a separate backend server (e.g., Express.js). All backend and API logic must leverage native Next.js features (Server Actions and Services).
+1. PRD (Product Requirement Document)
+2. Database Schema (prisma/schema.prisma)
+3. AGENTS.md
 
-3. DO NOT write Prisma queries (e.g., prisma.request.create) directly inside UI component files (/app/\*). All queries must reside exclusively in the /services directory.
+If there is any conflict, follow the PRD.
 
-4. DO NOT store receipt files or images directly in the database as Base64/Blobs. Use a TEXT column to store the string path as preparation for MinIO Storage integration.
+## Technology Stack
 
-✅ MANDATORY:
+Framework: Next.js 16 (App Router)
+Language: TypeScript (Strict Mode)
+Styling: Tailwind CSS
+UI Components: shadcn/ui
+Icons: Phosphor Icons
+Database: PostgreSQL
+ORM: Prisma ORM
+Validation: Zod
+PDF Generator: @react-pdf/renderer (Prepared)
+Object Storage: MinIO (Prepared)
 
-1. Use Server Actions for data mutations and interactions between the UI Component and the Service Layer.
+## Architecture Principles
 
-2. Use the BigInt data type in Prisma (mapping to BIGINT in PostgreSQL) for all financial amounts (Rupiah) to avoid floating-point rounding errors.
+The project follows a Monolithic Feature-Based Architecture.
 
-3. Ensure all UI views are fully responsive using Tailwind CSS.
+- Feature Module Based
+- Server Components by Default
+- Business Logic inside Service Layer
+- Database access only through Repository Layer
+- UI must never communicate directly with Prisma
+- Shared components must be reusable
+- Business logic must remain independent from UI
 
-## Claim Status Workflow (State Machine)
+## Project Structure
 
-Documents must transition linearly through the following statuses:
-DRAFT ➡️ PENDING_ATASAN ➡️ PENDING_FINANCE ➡️ APPROVED or REJECTED.
+├── prisma/
+│ ├── schema.prisma
+│ └── seed.ts
+│
+├── public/
+│
+├── src/
+│ ├── app/
+│ │ ├── (auth)/
+│ │ ├── (dashboard)/
+│ │ │
+│ │ ├── api/
+│ │ │ ├── auth/
+│ │ │ ├── reimbursement/
+│ │ │
+│ │ ├── layout.tsx
+│ │ └── page.tsx
+│ │
+│ ├── modules/
+│ │ ├── auth/
+│ │ ├── reimbursement/
+│ │ │ ├── components/
+│ │ │ ├── constants/
+│ │ │ ├── hooks/
+│ │ │ ├── actions/
+│ │ │ ├── services/
+│ │ │ ├── repositories/
+│ │ │ ├── validation/
+│ │ │ ├── types.ts
+│ │ │ ├── index.ts
+│ │
+│ ├── components/
+│ │ ├── ui/
+│ │ ├── layouts/
+│ │ └── shared/
+│ │
+│ ├── hooks/
+│ ├── lib/
+│ ├── utils/
+│ ├── types/
+│ │
+│ └── middleware.ts
+│
+├── package.json
+└── tsconfig.json
 
-If a document is moved to REJECTED (either by Atasan or Finance), the notes column in the history table is mandatory to explain the reason for rejection.
+## Development Principles
 
-## Development Mode & Authentication Bypass
+Always write code that is:
 
-Since the production SSO (Single Sign-On) integration is not yet ready for the initial development phase, you must implement an authentication bypass simulation:
+Simple
+Readable
+Maintainable
+Modular
+Reusable
+Type-safe
 
-- Provide a dropdown menu on the login page (`/app/page.tsx`) with the roles: `Requester`, `Manager`, and `Finance`.
-- When a role is selected, populate and save dummy session data (such as user_id, user_name, and role) into the application state or cookies so dashboards can correctly authorize access.
+Avoid unnecessary abstractions.
+Prefer readability over clever implementations.
 
-## How to Write Comments
+## Database Rules
 
-Write comments to explain "Why" a specific workflow or workaround was built, not "What" the syntax does.
+The database schema is considered stable.
 
-Example of a good comment:
+AI MUST NOT:
 
-TypeScript
-// Utilizing BigInt to completely eliminate decimal rounding bugs in Rupiah financial calculations
-const totalAmount: bigint = items.reduce((acc, item) => acc + item.amount, 0n);
-Note for AI: Please parse and read this file every time you initialize or modify code within this project repository.
+Modify existing database structure.
+Rename tables.
+Rename Prisma models.
+Rename columns.
+Change relationships.
+Change enums.
+Modify business workflow stored in the schema.
+
+Only generate migrations when explicitly requested.
+
+## Current Database Models
+
+Master Data
+
+- Department
+- Role
+- Permission
+- RolePermission
+- User
+- ReimbursementCategory
+
+Transaction
+
+- Reimbursement
+- ReimbursementItem
+- Attachment
+
+Supporting
+
+- WorkflowHistory
+- Notification
+
+## Authentication
+
+- Development Environment
+- Use Mock Authentication.
+- The login page must provide Role Impersonation using predefined users.
+- Production Environment
+- Authentication will use Company SSO (OAuth2 / OpenID Connect).
+- Never implement custom authentication logic intended for production.
+
+## Authorization
+
+Authorization uses Role-Based Access Control (RBAC).
+
+Structure:
+
+User > Role > RolePermission > Permission
+
+Never hardcode permissions inside UI components.
+Always check permissions through the authorization layer.
+
+## Business Workflow
+
+Workflow must remain unchanged.
+
+Draft > Submitted > Manager Review > Approved by Manager > Finance Review > Approved by Finance > Paid > Completed
+
+Rejected and Returned workflows must always be recorded inside WorkflowHistory.
+
+## Financial Data
+
+- Financial values represent Indonesian Rupiah.
+- Always use Prisma Decimal for monetary values.
+- Never use floating-point calculations.
+- Always calculate:
+
+Total Amount = SUM(ReimbursementItem.amount)
+
+Store the calculated total inside Reimbursement.
+
+## File Storage
+
+Receipt files are NOT stored inside the database.
+Only store metadata:
+
+fileName
+objectKey
+mimeType
+fileSize
+
+Files will be stored in MinIO.
+Never store Base64 or Blob inside PostgreSQL.
+
+# Coding Rules
+
+DO:
+
+- Use Server Actions for mutations.
+- Keep UI components focused on presentation.
+- Place business logic inside Services.
+- Place database queries inside Repositories.
+- Validate every input using Zod.
+- Reuse existing components whenever possible.
+- Prefer Server Components over Client Components.
+- Keep functions small and focused.
+- Write meaningful variable names.
+
+DO NOT:
+
+- Write Prisma queries inside UI.
+- Duplicate business logic.
+- Create unnecessary helper functions.
+- Create unnecessary abstractions.
+- Introduce new libraries without explicit request.
+- Change folder structure.
+- Change naming conventions.
+- Modify workflow without approval.
+- Modify Prisma schema unless requested.
+
+## Code Style
+
+Use:
+
+- TypeScript Strict Mode
+- Async/Await
+- Early Return
+- Small Functions
+- Named Exports
+
+Avoid:
+
+- any
+- Nested conditionals
+- Magic strings
+- Magic numbers
+
+## Comments
+
+Write comments only to explain:
+
+- Why something exists.
+- Why a workaround is required.
+- Why a business rule exists.
+
+Never comment obvious syntax.
+
+Good example:
+// Store totalAmount to optimize dashboard aggregation queries.
+
+Bad example:
+// Loop through array.
+
+## AI Behavior
+
+Before generating code:
+
+1. Understand the requested feature.
+2. Follow the existing architecture.
+3. Reuse existing modules.
+4. Avoid unnecessary refactoring.
+5. Keep changes minimal.
+6. Preserve backward compatibility whenever possible.
+
+When unsure:
+
+Do not invent new business rules.
+Follow the PRD.
+
+## Goal
+
+Generate production-ready code that is:
+
+- Consistent
+- Predictable
+- Easy to maintain
+- Easy for the internal IT team to understand
+- Aligned with the project's architecture and business rules

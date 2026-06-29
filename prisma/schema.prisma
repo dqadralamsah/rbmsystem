@@ -12,80 +12,237 @@ datasource db {
   provider = "postgresql"
 }
 
-enum ClaimStatus {
-  DRAFT
-  PENDING_ATASAN
-  PENDING_FINANCE
-  APPROVED
-  REJECTED
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
 }
 
-enum ActionType {
+enum ReimbursementStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED_BY_MANAGER
+  REJECTED_BY_MANAGER
+  APPROVED_BY_MANAGER
+  RETURNED_BY_FINANCE
+  REJECTED_BY_FINANCE
+  APPROVED_BY_FINANCE
+  PAID
+  COMPLETED
+}
+
+enum WorkflowAction {
+  CREATE
   SUBMIT
   APPROVE
+  RETURN
   REJECT
+  MARK_AS_PAID
+  COMPLETE
 }
 
-// ==========================================
-// MODELS / TABLES
-// ==========================================
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
 
-model ReimbursementRequest {
-  id          String                    @id @db.VarChar(20) // Format: RBM-YYYYMM-XXXX
-  userId      String                    @map("user_id") @db.VarChar(50)
-  userName    String                    @map("user_name") @db.VarChar(100)
-  approverId  String                    @map("approver_id") @db.VarChar(50)
-  title       String                    @db.VarChar(255)
-  totalAmount BigInt                    @map("total_amount") @db.BigInt // Rupee/Rupiah BigInt safety
-  status      ClaimStatus               @default(DRAFT)
-  createdAt   DateTime                  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+model Department {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
 
-  // Relations
-  items       ReimbursementItem[]
-  attachments ReimbursementAttachment[]
-  histories   ReimbursementHistory[]
+  users User[]
 
-  @@map("reimbursement_requests")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("departments")
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+
+  users       User[]
+  permissions RolePermission[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  employeeId   String?    @unique
+  email        String     @unique
+  fullName     String
+  departmentId String
+  roleId       String
+  managerId    String?
+  status       UserStatus @default(ACTIVE)
+  department   Department @relation(fields: [departmentId], references: [id])
+  role         Role       @relation(fields: [roleId], references: [id])
+  manager      User?      @relation("UserManager", fields: [managerId], references: [id])
+  subordinates User[]     @relation("UserManager")
+
+  reimbursements Reimbursement[]
+  history        WorkflowHistory[]
+  notification   Notification[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([departmentId])
+  @@index([roleId])
+  @@index([managerId])
+  @@map("users")
+}
+
+model ReimbursementCategory {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  reimbursementItem ReimbursementItem[]
+
+  @@map("reimbursement_categories")
+}
+
+model Reimbursement {
+  id          String              @id @default(cuid())
+  number      String              @unique
+  requesterId String
+  description String?
+  status      ReimbursementStatus @default(DRAFT)
+  totalAmount Decimal             @db.Decimal(15, 2)
+  submittedAt DateTime?
+  paidAt      DateTime?
+  completedAt DateTime?
+  requester   User                @relation(fields: [requesterId], references: [id])
+
+  items             ReimbursementItem[]
+  attachments       Attachment[]
+  workflowHistories WorkflowHistory[]
+  notifications     Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([status])
+  @@map("reimbursements")
 }
 
 model ReimbursementItem {
-  id          Int                  @id @default(autoincrement())
-  requestId   String               @map("request_id") @db.VarChar(20)
-  category    String               @db.VarChar(50) // Transport, Medical, etc.
-  amount      BigInt               @db.BigInt
-  description String?              @db.Text
+  id              String                @id @default(cuid())
+  reimbursementId String
+  categoryId      String
+  description     String
+  amount          Decimal               @db.Decimal(15, 2)
+  reimbursement   Reimbursement         @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  category        ReimbursementCategory @relation(fields: [categoryId], references: [id])
 
-  // Relations
-  request     ReimbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([reimbursementId])
+  @@index([categoryId])
   @@map("reimbursement_items")
 }
 
-model ReimbursementAttachment {
-  id        Int                  @id @default(autoincrement())
-  requestId String               @map("request_id") @db.VarChar(20)
-  fileName  String               @map("file_name") @db.VarChar(255)
-  filePath  String               @map("file_path") @db.Text // Target pointer for MinIO Path
-  fileSize  Int                  @map("file_size") @db.Integer // Max 10MB validation handled in service
+model Attachment {
+  id              String @id @default(cuid())
+  reimbursementId String
+  fileName        String
+  objectKey       String
+  mimeType        String
+  fileSize        Int
 
-  // Relations
-  request   ReimbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reimbursement Reimbursement @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
 
-  @@map("reimbursement_attachments")
+  createdAt DateTime @default(now())
+
+  @@index([reimbursementId])
+  @@map("attachments")
 }
 
-model ReimbursementHistory {
-  id        Int                  @id @default(autoincrement())
-  requestId String               @map("request_id") @db.VarChar(20)
-  actorId   String               @map("actor_id") @db.VarChar(50)
-  actorName String               @map("actor_name") @db.VarChar(100)
-  action    ActionType
-  notes     String?              @db.Text // Mandatory in application level if action is REJECT
-  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz
+model WorkflowHistory {
+  id              String               @id @default(cuid())
+  reimbursementId String
+  action          WorkflowAction
+  fromStatus      ReimbursementStatus?
+  toStatus        ReimbursementStatus
+  performedById   String
+  notes           String?
 
-  // Relations
-  request   ReimbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reimbursement Reimbursement @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  performedBy   User          @relation(fields: [performedById], references: [id])
 
-  @@map("reimbursement_histories")
+  createdAt DateTime @default(now())
+
+  @@index([reimbursementId])
+  @@index([performedById])
+  @@map("workflow_histories")
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  userId          String
+  reimbursementId String?
+  type            NotificationType @default(INFO)
+  title           String
+  message         String
+  isRead          Boolean          @default(false)
+  readAt          DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reimbursement Reimbursement? @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
 }

@@ -1,5 +1,8 @@
-import { SignIn, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
-import { revalidatePath } from "next/cache";
+import {
+  Buildings,
+  IdentificationBadge,
+  SignIn,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,92 +14,101 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { getCurrentUser } from "@/lib/auth";
+import { loginWithDevelopmentUser } from "@/modules/auth/actions/auth.actions";
 import {
-  getAuthSession,
-  parseAuthRole,
-  setMockAuthSession,
-} from "@/lib/auth";
-
-async function loginWithMockRole(formData: FormData) {
-  "use server";
-
-  const role = parseAuthRole(formData.get("role"));
-
-  // This single write point is intentionally temporary so SSO/Auth.js can replace cookie creation without changing UI flows.
-  await setMockAuthSession(role);
-  revalidatePath("/");
-}
+  isDevelopmentAuthenticationEnabled,
+  listDevelopmentLoginUsers,
+} from "@/modules/auth/services/auth.service";
 
 export default async function Home() {
-  const session = await getAuthSession();
+  const isDevelopmentAuthEnabled = isDevelopmentAuthenticationEnabled();
+  const users = await listDevelopmentLoginUsers();
+  const currentUser = await getCurrentUser();
+  const isLoginDisabled = !isDevelopmentAuthEnabled || users.length === 0;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
-      <section className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_420px] lg:items-center">
+      <section className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_430px] lg:items-center">
         <div className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm">
-            <ShieldCheck className="size-4" weight="duotone" />
-            Development Authentication Bypass
+          <div className="flex size-14 items-center justify-center rounded-md border bg-background shadow-sm">
+            <Buildings className="size-8 text-primary" weight="duotone" />
           </div>
           <div className="space-y-4">
-            <h1 className="max-w-2xl text-3xl font-semibold leading-tight tracking-normal text-foreground sm:text-4xl">
-              Internal E-Reimbursement System
+            <h1 className="max-w-2xl text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+              Reimbursement System
             </h1>
             <p className="max-w-xl text-base leading-7 text-muted-foreground">
-              Select a development role to create a mock session with the same
-              shape the approval dashboards will read after SSO is connected.
+              Internal reimbursement management for requests, approvals,
+              finance verification, payment, and audit history.
             </p>
           </div>
         </div>
 
-        <Card className="w-full">
+        <Card className="w-full rounded-md">
           <CardHeader>
-            <CardTitle>Masuk sebagai</CardTitle>
+            <CardTitle>Development Login</CardTitle>
             <CardDescription>
-              Pilih role untuk mensimulasikan session pengguna.
+              Select a seeded user profile to enter the system.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={loginWithMockRole} className="space-y-5">
+            <form action={loginWithDevelopmentUser} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="userId">User</Label>
                 <Select
-                  id="role"
-                  name="role"
+                  id="userId"
+                  name="userId"
                   required
-                  defaultValue={session?.role ?? ""}
+                  defaultValue={currentUser?.userId ?? ""}
+                  disabled={isLoginDisabled}
                 >
                   <option value="" disabled>
-                    Pilih role development
+                    Select user
                   </option>
-                  <option value="REQUESTER">Pemohon (Employee)</option>
-                  <option value="MANAGER">Atasan (Manager)</option>
-                  <option value="FINANCE">Finance</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.fullName} - {user.role} - {user.department}
+                    </option>
+                  ))}
                 </Select>
               </div>
 
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={isLoginDisabled}>
                 <SignIn className="size-4" weight="bold" />
-                Simulasikan Login
+                Login
               </Button>
             </form>
 
-            {session ? (
+            {!isDevelopmentAuthEnabled ? (
+              <p className="mt-6 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                Development authentication is disabled in this environment.
+              </p>
+            ) : null}
+
+            {isDevelopmentAuthEnabled && users.length === 0 ? (
+              <p className="mt-6 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+                No active users are available.
+              </p>
+            ) : null}
+
+            {currentUser ? (
               <div className="mt-6 rounded-md border bg-muted/40 p-4 text-sm">
-                <p className="font-medium text-foreground">
-                  Session aktif: {session.userName}
-                </p>
+                <div className="flex items-center gap-2 font-medium text-foreground">
+                  <IdentificationBadge className="size-4" weight="duotone" />
+                  {currentUser.fullName}
+                </div>
                 <dl className="mt-3 grid gap-2 text-muted-foreground">
                   <div className="flex justify-between gap-4">
                     <dt>Role</dt>
                     <dd className="font-medium text-foreground">
-                      {session.role}
+                      {currentUser.role}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt>Approver</dt>
+                    <dt>Department</dt>
                     <dd className="font-medium text-foreground">
-                      {session.approverName}
+                      {currentUser.departmentName}
                     </dd>
                   </div>
                 </dl>
