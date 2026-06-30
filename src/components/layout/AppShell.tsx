@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
-import type { CurrentUser } from "@/modules/auth/types";
+import type { CurrentUser } from "@/types/auth";
 
 interface AppShellProps {
   children: ReactNode;

@@ -51,6 +51,10 @@ enum NotificationType {
   ERROR
 }
 
+// ==========================================
+// MASTER DATA
+// ==========================================
+
 model Department {
   id   String @id @default(cuid())
   code String @unique
@@ -149,6 +153,10 @@ model ReimbursementCategory {
 
   @@map("reimbursement_categories")
 }
+
+// ==========================================
+// TRANSACTIONS
+// ==========================================
 
 model Reimbursement {
   id          String              @id @default(cuid())

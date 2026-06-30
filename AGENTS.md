@@ -54,6 +54,7 @@ The project follows a Monolithic Feature-Based Architecture.
 
 ## Project Structure
 
+```
 ├── prisma/
 │ ├── schema.prisma
 │ └── seed.ts
@@ -99,6 +100,7 @@ The project follows a Monolithic Feature-Based Architecture.
 │
 ├── package.json
 └── tsconfig.json
+```
 
 ## Development Principles
 

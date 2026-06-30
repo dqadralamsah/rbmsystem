@@ -15,11 +15,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { getCurrentUser } from "@/lib/auth";
-import { loginWithDevelopmentUser } from "@/modules/auth/actions/auth.actions";
+import { loginWithDevelopmentUser } from "@/lib/auth/actions";
 import {
   isDevelopmentAuthenticationEnabled,
   listDevelopmentLoginUsers,
-} from "@/modules/auth/services/auth.service";
+} from "@/lib/auth/development-auth";
 
 export default async function Home() {
   const isDevelopmentAuthEnabled = isDevelopmentAuthenticationEnabled();

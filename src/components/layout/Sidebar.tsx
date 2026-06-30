@@ -3,6 +3,7 @@
 import {
   ChartPieSlice,
   ClipboardText,
+  CurrencyCircleDollar,
   GearSix,
   House,
   SealCheck,
@@ -12,39 +13,45 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { DASHBOARD_PERMISSION_CODES } from "@/modules/auth/constants";
-import { hasPermissionCode } from "@/modules/auth/services/authorization.service";
+import { hasPermissionCode } from "@/lib/auth/authorization";
+import { NAVIGATION_PERMISSION_REQUIREMENTS } from "@/lib/auth/constants";
 
 const navigationItems = [
   {
     href: "/dashboard",
     label: "Dashboard",
     icon: House,
-    permission: DASHBOARD_PERMISSION_CODES.dashboard,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.dashboard,
   },
   {
     href: "/dashboard/reimbursement",
     label: "Reimbursement",
     icon: ClipboardText,
-    permission: DASHBOARD_PERMISSION_CODES.reimbursement,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.reimbursement,
   },
   {
     href: "/dashboard/approval",
     label: "Approval",
     icon: SealCheck,
-    permission: DASHBOARD_PERMISSION_CODES.approval,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.approval,
+  },
+  {
+    href: "/dashboard/finance",
+    label: "Finance",
+    icon: CurrencyCircleDollar,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.finance,
   },
   {
     href: "/dashboard/master-data",
     label: "Master Data",
     icon: Table,
-    permission: DASHBOARD_PERMISSION_CODES.masterData,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.masterData,
   },
   {
     href: "/dashboard/settings",
     label: "Settings",
     icon: GearSix,
-    permission: DASHBOARD_PERMISSION_CODES.settings,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.settings,
   },
 ] as const;
 

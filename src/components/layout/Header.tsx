@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 import { Breadcrumb, getPageTitle } from "@/components/layout/Breadcrumb";
 import { Button } from "@/components/ui/button";
-import type { CurrentUser } from "@/modules/auth/types";
-import { logout } from "@/modules/auth/actions/auth.actions";
+import { logout } from "@/lib/auth/actions";
+import type { CurrentUser } from "@/types/auth";
 
 interface HeaderProps {
   user: CurrentUser;
