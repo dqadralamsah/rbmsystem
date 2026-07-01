@@ -17,7 +17,7 @@ export async function listExpenseCategories(
 ) {
   const [expenseCategories, totalItems] = await Promise.all([
     expenseCategoryRepository.findExpenseCategories(params),
-    expenseCategoryRepository.countExpenseCategories(params.search),
+    expenseCategoryRepository.countExpenseCategories(params),
   ]);
 
   return {

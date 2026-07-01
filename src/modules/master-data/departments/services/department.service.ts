@@ -3,6 +3,7 @@ import "server-only";
 import {
   ConflictError,
   NotFoundError,
+  ValidationError,
 } from "@/lib/errors";
 import {
   createPaginationMeta,
@@ -17,7 +18,7 @@ import type {
 export async function listDepartments(params: DepartmentListParams) {
   const [departments, totalItems] = await Promise.all([
     departmentRepository.findDepartments(params),
-    departmentRepository.countDepartments(params.search),
+    departmentRepository.countDepartments(params),
   ]);
 
   return {
@@ -70,5 +71,11 @@ export async function updateDepartment(
 
 export async function deleteDepartment(id: string) {
   await getDepartment(id);
+  const userCount = await departmentRepository.countDepartmentUsers(id);
+
+  if (userCount > 0) {
+    throw new ValidationError("Department cannot be deleted while used by users.");
+  }
+
   await departmentRepository.softDeleteDepartment(id);
 }

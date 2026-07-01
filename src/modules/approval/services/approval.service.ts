@@ -7,6 +7,10 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/lib/errors";
+import {
+  AuditAction,
+  recordMutationAuditLog,
+} from "@/modules/audit-log";
 import * as approvalRepository from "@/modules/approval/repositories/approval.repository";
 import type {
   ApprovalActionInput,
@@ -69,7 +73,28 @@ export async function approveReimbursement(
 
   ensureSubmittedStatus(reimbursement.status);
 
-  return approvalRepository.approveReimbursement(id, manager.userId, input.notes);
+  const approvedReimbursement = await approvalRepository.approveReimbursement(
+    id,
+    manager.userId,
+    input.notes,
+  );
+
+  await recordMutationAuditLog({
+    actor: manager,
+    action: AuditAction.APPROVE,
+    resource: "Reimbursement",
+    resourceId: id,
+    description: "Manager approved reimbursement.",
+    oldValues: reimbursement,
+    newValues: approvedReimbursement,
+    metadata: {
+      notes: input.notes,
+      fromStatus: reimbursement.status,
+      toStatus: ReimbursementStatus.APPROVED_BY_MANAGER,
+    },
+  });
+
+  return approvedReimbursement;
 }
 
 export async function rejectReimbursement(
@@ -81,7 +106,28 @@ export async function rejectReimbursement(
 
   ensureSubmittedStatus(reimbursement.status);
 
-  return approvalRepository.rejectReimbursement(id, manager.userId, input.notes);
+  const rejectedReimbursement = await approvalRepository.rejectReimbursement(
+    id,
+    manager.userId,
+    input.notes,
+  );
+
+  await recordMutationAuditLog({
+    actor: manager,
+    action: AuditAction.REJECT,
+    resource: "Reimbursement",
+    resourceId: id,
+    description: "Manager rejected reimbursement.",
+    oldValues: reimbursement,
+    newValues: rejectedReimbursement,
+    metadata: {
+      notes: input.notes,
+      fromStatus: reimbursement.status,
+      toStatus: ReimbursementStatus.REJECTED_BY_MANAGER,
+    },
+  });
+
+  return rejectedReimbursement;
 }
 
 export async function returnReimbursement(
@@ -93,5 +139,26 @@ export async function returnReimbursement(
 
   ensureSubmittedStatus(reimbursement.status);
 
-  return approvalRepository.returnReimbursement(id, manager.userId, input.notes);
+  const returnedReimbursement = await approvalRepository.returnReimbursement(
+    id,
+    manager.userId,
+    input.notes,
+  );
+
+  await recordMutationAuditLog({
+    actor: manager,
+    action: AuditAction.RETURN,
+    resource: "Reimbursement",
+    resourceId: id,
+    description: "Manager returned reimbursement.",
+    oldValues: reimbursement,
+    newValues: returnedReimbursement,
+    metadata: {
+      notes: input.notes,
+      fromStatus: reimbursement.status,
+      toStatus: ReimbursementStatus.RETURNED_BY_MANAGER,
+    },
+  });
+
+  return returnedReimbursement;
 }

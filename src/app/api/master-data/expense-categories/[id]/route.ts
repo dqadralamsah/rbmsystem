@@ -7,6 +7,10 @@ import {
 } from "@/lib/api";
 import { withApiPermission } from "@/lib/auth/route-handlers";
 import {
+  AuditAction,
+  recordMutationAuditLog,
+} from "@/modules/audit-log";
+import {
   deleteExpenseCategory,
   getExpenseCategory,
   updateExpenseCategory,
@@ -39,7 +43,18 @@ export const PATCH = withApiPermission<ExpenseCategoryRouteContext>(
       request,
       updateExpenseCategorySchema,
     );
+    const oldExpenseCategory = await getExpenseCategory(id);
     const expenseCategory = await updateExpenseCategory(id, payload);
+
+    await recordMutationAuditLog({
+      actor: context.user,
+      action: AuditAction.UPDATE,
+      resource: "ReimbursementCategory",
+      resourceId: expenseCategory.id,
+      description: "Updated reimbursement category.",
+      oldValues: oldExpenseCategory,
+      newValues: expenseCategory,
+    });
 
     return apiSuccess(expenseCategory, {
       message: "Expense category updated.",
@@ -51,7 +66,17 @@ export const DELETE = withApiPermission<ExpenseCategoryRouteContext>(
   EXPENSE_CATEGORY_PERMISSION,
   async (_request: NextRequest, context) => {
     const { id } = await context.params;
+    const expenseCategory = await getExpenseCategory(id);
+
     await deleteExpenseCategory(id);
+    await recordMutationAuditLog({
+      actor: context.user,
+      action: AuditAction.DELETE,
+      resource: "ReimbursementCategory",
+      resourceId: expenseCategory.id,
+      description: "Deleted reimbursement category.",
+      oldValues: expenseCategory,
+    });
 
     return apiNoContent();
   },

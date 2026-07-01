@@ -17,7 +17,7 @@ import type {
 export async function listEmployees(params: EmployeeListParams) {
   const [employees, totalItems] = await Promise.all([
     employeeRepository.findEmployees(params),
-    employeeRepository.countEmployees(params.search),
+    employeeRepository.countEmployees(params),
   ]);
 
   return {
@@ -124,5 +124,14 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput) {
 
 export async function deleteEmployee(id: string) {
   await getEmployee(id);
+  const activeWorkflowCount =
+    await employeeRepository.countActiveEmployeeReimbursements(id);
+
+  if (activeWorkflowCount > 0) {
+    throw new ValidationError(
+      "Employee cannot be deleted while they have active reimbursements.",
+    );
+  }
+
   await employeeRepository.softDeleteEmployee(id);
 }

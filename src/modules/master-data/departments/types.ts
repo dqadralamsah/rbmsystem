@@ -8,6 +8,7 @@ import type { PaginationInput } from "@/types/api";
 
 export interface DepartmentListParams {
   search?: string;
+  status?: "active" | "deleted" | "all";
   pagination: PaginationInput;
 }
 

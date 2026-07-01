@@ -5,9 +5,13 @@ import type {
   updateEmployeeSchema,
 } from "@/modules/master-data/employees/validation/employee.validation";
 import type { PaginationInput } from "@/types/api";
+import type { UserStatus } from "@/generated/prisma/enums";
 
 export interface EmployeeListParams {
   search?: string;
+  departmentId?: string;
+  roleId?: string;
+  status?: UserStatus;
   pagination: PaginationInput;
 }
 

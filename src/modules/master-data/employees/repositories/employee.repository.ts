@@ -20,9 +20,20 @@ const employeeInclude = {
   },
 };
 
-function createEmployeeWhere(search?: string) {
+function createEmployeeWhere({
+  search,
+  departmentId,
+  roleId,
+  status,
+}: Pick<
+  EmployeeListParams,
+  "search" | "departmentId" | "roleId" | "status"
+>) {
   return {
     deletedAt: null,
+    ...(departmentId ? { departmentId } : {}),
+    ...(roleId ? { roleId } : {}),
+    ...(status ? { status } : {}),
     ...(search
       ? {
           OR: [
@@ -35,19 +46,22 @@ function createEmployeeWhere(search?: string) {
   };
 }
 
-export async function countEmployees(search?: string) {
+export async function countEmployees(params: Pick<
+  EmployeeListParams,
+  "search" | "departmentId" | "roleId" | "status"
+>) {
   return prisma.user.count({
-    where: createEmployeeWhere(search),
+    where: createEmployeeWhere(params),
   });
 }
 
-export async function findEmployees({ search, pagination }: EmployeeListParams) {
+export async function findEmployees(params: EmployeeListParams) {
   return prisma.user.findMany({
-    where: createEmployeeWhere(search),
+    where: createEmployeeWhere(params),
     include: employeeInclude,
     orderBy: [{ fullName: "asc" }, { email: "asc" }],
-    skip: (pagination.page - 1) * pagination.pageSize,
-    take: pagination.pageSize,
+    skip: (params.pagination.page - 1) * params.pagination.pageSize,
+    take: params.pagination.pageSize,
   });
 }
 
@@ -122,6 +136,21 @@ export async function softDeleteEmployee(id: string) {
     where: { id },
     data: {
       deletedAt: new Date(),
+    },
+  });
+}
+
+export async function countActiveEmployeeReimbursements(id: string) {
+  return prisma.reimbursement.count({
+    where: {
+      requesterId: id,
+      status: {
+        notIn: [
+          "REJECTED_BY_MANAGER",
+          "REJECTED_BY_FINANCE",
+          "COMPLETED",
+        ],
+      },
     },
   });
 }

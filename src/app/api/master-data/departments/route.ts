@@ -9,6 +9,10 @@ import {
 } from "@/lib/api";
 import { withApiPermission } from "@/lib/auth/route-handlers";
 import {
+  AuditAction,
+  recordMutationAuditLog,
+} from "@/modules/audit-log";
+import {
   createDepartment,
   createDepartmentSchema,
   departmentListQuerySchema,
@@ -27,6 +31,7 @@ export const GET = withApiPermission(
     );
     const result = await listDepartments({
       search: query.search,
+      status: query.status,
       pagination,
     });
 
@@ -36,9 +41,18 @@ export const GET = withApiPermission(
 
 export const POST = withApiPermission(
   DEPARTMENT_PERMISSION,
-  async (request: NextRequest) => {
+  async (request: NextRequest, context) => {
     const payload = await validateRequestBody(request, createDepartmentSchema);
     const department = await createDepartment(payload);
+
+    await recordMutationAuditLog({
+      actor: context.user,
+      action: AuditAction.CREATE,
+      resource: "Department",
+      resourceId: department.id,
+      description: "Created department.",
+      newValues: department,
+    });
 
     return apiCreated(department, "Department created.");
   },

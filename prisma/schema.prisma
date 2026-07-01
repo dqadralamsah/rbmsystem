@@ -51,6 +51,19 @@ enum NotificationType {
   ERROR
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SUBMIT
+  APPROVE
+  RETURN
+  REJECT
+  VERIFY
+  MARK_AS_PAID
+  UPDATE_PERMISSIONS
+}
+
 // ==========================================
 // MASTER DATA
 // ==========================================
@@ -127,6 +140,7 @@ model User {
   reimbursements Reimbursement[]
   history        WorkflowHistory[]
   notification   Notification[]
+  auditLogs      AuditLog[]        @relation("AuditLogActor")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -253,4 +267,27 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorId     String?
+  action      AuditAction
+  resource    String
+  resourceId  String?
+  description String?
+  oldValues   Json?
+  newValues   Json?
+  metadata    Json?
+
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resource])
+  @@index([resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

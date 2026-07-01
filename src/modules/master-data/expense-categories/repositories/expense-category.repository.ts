@@ -7,9 +7,15 @@ import type {
   UpdateExpenseCategoryInput,
 } from "@/modules/master-data/expense-categories/types";
 
-function createExpenseCategoryWhere(search?: string) {
+function createExpenseCategoryWhere({
+  search,
+  isActive,
+  status = "active",
+}: Pick<ExpenseCategoryListParams, "search" | "isActive" | "status">) {
   return {
-    deletedAt: null,
+    ...(status === "active" ? { deletedAt: null } : {}),
+    ...(status === "deleted" ? { deletedAt: { not: null } } : {}),
+    ...(typeof isActive === "boolean" ? { isActive } : {}),
     ...(search
       ? {
           OR: [
@@ -27,18 +33,22 @@ function createExpenseCategoryWhere(search?: string) {
   };
 }
 
-export async function countExpenseCategories(search?: string) {
+export async function countExpenseCategories(
+  params: Pick<ExpenseCategoryListParams, "search" | "isActive" | "status">,
+) {
   return prisma.reimbursementCategory.count({
-    where: createExpenseCategoryWhere(search),
+    where: createExpenseCategoryWhere(params),
   });
 }
 
 export async function findExpenseCategories({
   search,
+  isActive,
+  status,
   pagination,
 }: ExpenseCategoryListParams) {
   return prisma.reimbursementCategory.findMany({
-    where: createExpenseCategoryWhere(search),
+    where: createExpenseCategoryWhere({ search, isActive, status }),
     orderBy: [{ name: "asc" }, { code: "asc" }],
     skip: (pagination.page - 1) * pagination.pageSize,
     take: pagination.pageSize,

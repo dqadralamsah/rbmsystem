@@ -6,6 +6,9 @@ const optionalStringSchema = z.string().trim().min(1).max(50).nullable();
 
 export const employeeListQuerySchema = z.object({
   search: z.string().trim().optional(),
+  departmentId: z.string().trim().optional(),
+  roleId: z.string().trim().optional(),
+  status: z.enum([UserStatus.ACTIVE, UserStatus.INACTIVE]).optional(),
 });
 
 export const createEmployeeSchema = z.object({

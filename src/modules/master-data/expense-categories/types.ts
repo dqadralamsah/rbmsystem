@@ -8,6 +8,8 @@ import type { PaginationInput } from "@/types/api";
 
 export interface ExpenseCategoryListParams {
   search?: string;
+  isActive?: boolean;
+  status?: "active" | "deleted" | "all";
   pagination: PaginationInput;
 }
 

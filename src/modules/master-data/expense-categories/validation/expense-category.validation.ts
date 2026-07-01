@@ -6,6 +6,11 @@ const categoryDescriptionSchema = z.string().trim().min(1).max(255).nullable();
 
 export const expenseCategoryListQuerySchema = z.object({
   search: z.string().trim().optional(),
+  isActive: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  status: z.enum(["active", "deleted", "all"]).optional(),
 });
 
 export const createExpenseCategorySchema = z.object({

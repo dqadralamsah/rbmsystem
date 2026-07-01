@@ -5,6 +5,7 @@ const departmentNameSchema = z.string().trim().min(1).max(100);
 
 export const departmentListQuerySchema = z.object({
   search: z.string().trim().optional(),
+  status: z.enum(["active", "deleted", "all"]).optional(),
 });
 
 export const createDepartmentSchema = z.object({

@@ -17,6 +17,10 @@ import {
   createDraftNumber,
   generateReimbursementNumber,
 } from "@/modules/reimbursement/services/reimbursement-number.service";
+import {
+  AuditAction,
+  recordMutationAuditLog,
+} from "@/modules/audit-log";
 import * as reimbursementRepository from "@/modules/reimbursement/repositories/reimbursement.repository";
 import type {
   ReimbursementListParams,
@@ -124,6 +128,15 @@ export async function createDraftReimbursement(
     throw new NotFoundError("Reimbursement was not found.");
   }
 
+  await recordMutationAuditLog({
+    actor: user,
+    action: AuditAction.CREATE,
+    resource: "Reimbursement",
+    resourceId: reimbursement.id,
+    description: "Created reimbursement draft.",
+    newValues: reimbursement,
+  });
+
   return reimbursement;
 }
 
@@ -150,6 +163,16 @@ export async function updateDraftReimbursement(
     throw new NotFoundError("Reimbursement was not found.");
   }
 
+  await recordMutationAuditLog({
+    actor: user,
+    action: AuditAction.UPDATE,
+    resource: "Reimbursement",
+    resourceId: updatedReimbursement.id,
+    description: "Updated reimbursement draft.",
+    oldValues: reimbursement,
+    newValues: updatedReimbursement,
+  });
+
   return updatedReimbursement;
 }
 
@@ -158,6 +181,15 @@ export async function deleteDraftReimbursement(id: string, user: CurrentUser) {
 
   ensureDraftStatus(reimbursement.status);
   await reimbursementRepository.deleteDraftReimbursement(id);
+
+  await recordMutationAuditLog({
+    actor: user,
+    action: AuditAction.DELETE,
+    resource: "Reimbursement",
+    resourceId: reimbursement.id,
+    description: "Deleted reimbursement draft.",
+    oldValues: reimbursement,
+  });
 }
 
 export async function submitDraftReimbursement(id: string, user: CurrentUser) {
@@ -186,6 +218,20 @@ export async function submitDraftReimbursement(id: string, user: CurrentUser) {
   if (!submittedReimbursement) {
     throw new NotFoundError("Reimbursement was not found.");
   }
+
+  await recordMutationAuditLog({
+    actor: user,
+    action: AuditAction.SUBMIT,
+    resource: "Reimbursement",
+    resourceId: submittedReimbursement.id,
+    description: "Submitted reimbursement.",
+    oldValues: reimbursement,
+    newValues: submittedReimbursement,
+    metadata: {
+      fromStatus: reimbursement.status,
+      toStatus,
+    },
+  });
 
   return submittedReimbursement;
 }

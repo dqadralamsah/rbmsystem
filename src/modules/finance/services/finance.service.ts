@@ -6,6 +6,10 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/lib/errors";
+import {
+  AuditAction,
+  recordMutationAuditLog,
+} from "@/modules/audit-log";
 import * as financeRepository from "@/modules/finance/repositories/finance.repository";
 import type {
   FinanceActionInput,
@@ -58,11 +62,28 @@ export async function verifyReimbursement(
     );
   }
 
-  return financeRepository.verifyReimbursement(
+  const verifiedReimbursement = await financeRepository.verifyReimbursement(
     id,
     financeUser.userId,
     input.notes,
   );
+
+  await recordMutationAuditLog({
+    actor: financeUser,
+    action: AuditAction.VERIFY,
+    resource: "Reimbursement",
+    resourceId: id,
+    description: "Finance verified reimbursement.",
+    oldValues: reimbursement,
+    newValues: verifiedReimbursement,
+    metadata: {
+      notes: input.notes,
+      fromStatus: reimbursement.status,
+      toStatus: ReimbursementStatus.APPROVED_BY_FINANCE,
+    },
+  });
+
+  return verifiedReimbursement;
 }
 
 export async function returnReimbursement(
@@ -80,11 +101,28 @@ export async function returnReimbursement(
     );
   }
 
-  return financeRepository.returnReimbursement(
+  const returnedReimbursement = await financeRepository.returnReimbursement(
     id,
     financeUser.userId,
     input.notes,
   );
+
+  await recordMutationAuditLog({
+    actor: financeUser,
+    action: AuditAction.RETURN,
+    resource: "Reimbursement",
+    resourceId: id,
+    description: "Finance returned reimbursement.",
+    oldValues: reimbursement,
+    newValues: returnedReimbursement,
+    metadata: {
+      notes: input.notes,
+      fromStatus: reimbursement.status,
+      toStatus: ReimbursementStatus.RETURNED_BY_FINANCE,
+    },
+  });
+
+  return returnedReimbursement;
 }
 
 export async function markReimbursementAsPaid(
@@ -102,10 +140,29 @@ export async function markReimbursementAsPaid(
     );
   }
 
-  return financeRepository.markReimbursementAsPaid(
+  const paidAt = new Date();
+  const paidReimbursement = await financeRepository.markReimbursementAsPaid(
     id,
     financeUser.userId,
     input.notes,
-    new Date(),
+    paidAt,
   );
+
+  await recordMutationAuditLog({
+    actor: financeUser,
+    action: AuditAction.MARK_AS_PAID,
+    resource: "Reimbursement",
+    resourceId: id,
+    description: "Finance marked reimbursement as paid.",
+    oldValues: reimbursement,
+    newValues: paidReimbursement,
+    metadata: {
+      notes: input.notes,
+      fromStatus: reimbursement.status,
+      toStatus: ReimbursementStatus.COMPLETED,
+      paidAt,
+    },
+  });
+
+  return paidReimbursement;
 }

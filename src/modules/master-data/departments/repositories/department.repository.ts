@@ -7,9 +7,13 @@ import type {
   UpdateDepartmentInput,
 } from "@/modules/master-data/departments/types";
 
-function createDepartmentWhere(search?: string) {
+function createDepartmentWhere({
+  search,
+  status = "active",
+}: Pick<DepartmentListParams, "search" | "status">) {
   return {
-    deletedAt: null,
+    ...(status === "active" ? { deletedAt: null } : {}),
+    ...(status === "deleted" ? { deletedAt: { not: null } } : {}),
     ...(search
       ? {
           OR: [
@@ -21,21 +25,34 @@ function createDepartmentWhere(search?: string) {
   };
 }
 
-export async function countDepartments(search?: string) {
+export async function countDepartments({
+  search,
+  status,
+}: Pick<DepartmentListParams, "search" | "status">) {
   return prisma.department.count({
-    where: createDepartmentWhere(search),
+    where: createDepartmentWhere({ search, status }),
   });
 }
 
 export async function findDepartments({
   search,
+  status,
   pagination,
 }: DepartmentListParams) {
   return prisma.department.findMany({
-    where: createDepartmentWhere(search),
+    where: createDepartmentWhere({ search, status }),
     orderBy: [{ name: "asc" }, { code: "asc" }],
     skip: (pagination.page - 1) * pagination.pageSize,
     take: pagination.pageSize,
+  });
+}
+
+export async function countDepartmentUsers(id: string) {
+  return prisma.user.count({
+    where: {
+      departmentId: id,
+      deletedAt: null,
+    },
   });
 }
 

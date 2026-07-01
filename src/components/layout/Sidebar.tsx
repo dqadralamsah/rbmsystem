@@ -6,6 +6,7 @@ import {
   CurrencyCircleDollar,
   GearSix,
   House,
+  ListMagnifyingGlass,
   SealCheck,
   Table,
 } from "@phosphor-icons/react";
@@ -48,6 +49,13 @@ const navigationItems = [
     permission: NAVIGATION_PERMISSION_REQUIREMENTS.masterData,
   },
   {
+    href: "/dashboard/audit-logs",
+    label: "Audit Logs",
+    icon: ListMagnifyingGlass,
+    permission: NAVIGATION_PERMISSION_REQUIREMENTS.masterData,
+    superAdminOnly: true,
+  },
+  {
     href: "/dashboard/settings",
     label: "Settings",
     icon: GearSix,
@@ -56,6 +64,7 @@ const navigationItems = [
 ] as const;
 
 interface SidebarProps {
+  isSuperAdmin: boolean;
   permissions: string[];
 }
 
@@ -63,11 +72,15 @@ function isNavigationActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({ permissions }: SidebarProps) {
+export function Sidebar({ isSuperAdmin, permissions }: SidebarProps) {
   const pathname = usePathname();
-  const visibleItems = navigationItems.filter((item) =>
-    hasPermissionCode(permissions, item.permission),
-  );
+  const visibleItems = navigationItems.filter((item) => {
+    if ("superAdminOnly" in item && item.superAdminOnly && !isSuperAdmin) {
+      return false;
+    }
+
+    return hasPermissionCode(permissions, item.permission);
+  });
 
   return (
     <aside className="border-b bg-background md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r">
